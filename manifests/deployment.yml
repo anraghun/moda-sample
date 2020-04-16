@@ -1,0 +1,16 @@
+apiVersion : apps/v1beta1
+kind: Deployment
+metadata:
+  name: "anraghuncluster2"
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: "anraghuncluster2"
+    spec:
+      containers:
+        - name: "anraghuncluster2"
+          image: "anraghuncr.azurecr.io/anraghuncluster2"
+          ports:
+          - containerPort: 1337
