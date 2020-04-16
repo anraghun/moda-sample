@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: anraghuncr.azurecr.io
+        username: ${{ secrets.acr_anraghuncr_username }}
+        password: ${{ secrets.acr_anraghuncr_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/" -f  "dockerfile" -t anraghuncr.azurecr.io/anraghuncluster2:${{ github.sha }}
+        docker push anraghuncr.azurecr.io/anraghuncluster2:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_anraghuncluster2_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep anraghuncluster2e2d1 | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace anraghuncluster2e2d1`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: anraghuncluster2e2d1
+        container-registry-url: anraghuncr.azurecr.io
+        container-registry-username: ${{ secrets.acr_anraghuncr_username }}
+        container-registry-password: ${{ secrets.acr_anraghuncr_password }}
+        secret-name: anraghunclusdockerauth
+       
+    - uses: azure/k8s-deploy@v1
+      with:
+        namespace: anraghuncluster2e2d1
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          anraghuncr.azurecr.io/anraghuncluster2:${{ github.sha }}
+        imagepullsecrets: |
+          anraghunclusdockerauth
